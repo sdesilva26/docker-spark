@@ -188,7 +188,7 @@ address as specified in the bridge network.
 For this section most of this will be following the instructions from Docker's
 website about using an [overlay network for standalone containers](#https://docs.docker.com/network/network-tutorial-overlay/).
 
-If you have two different machines then the following can be skipped.
+If you have two different machines then the following section can be skipped.
 
 #### Settting up Amazon EC2 instances
 Otherwise you will need to setup at least 2 Amazon EC2 instances (or any other cloud computing provider
@@ -226,6 +226,32 @@ To avoid having to use sudo all the time follow these [instructions](#https://gi
 and then disconnect from your instance and connect back to it again. You should now
 be able to run Docker commands without sudo.
 
+Finally login to your repo and pull the spark_master and spark_worker image, one into each of the
+instances.
+
+For example, on instance 1
+```
+docker pull sdesilva26/spark_master:latest
+```
+
+and on instance 2,
+```
+docker pull sdesilva26/spark_worker:latest
+```
+
 You're all set to go!
 
-#### User-defined overlay network
+#### Default overlay network
+
+Now that you have two separate machines running Docker that are on the same network
+you have an architecture like this
+
+![Alt text](/images/docker_two_machines1.png "docker_on_two_machines1")
+
+There is two instances running Docker inside of the same subnet
+which is itself inside of your personal bit of the Amazon cloud
+called a virtual private cloud (VPC).
+
+We want to create a network that encapsulates both Docker containers. To do
+this we will first create a Docker swarm, which essentially links the daemons together,
+and then we will create an overlay network and put our containers in that network.
