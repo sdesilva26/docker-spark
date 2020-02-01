@@ -63,5 +63,61 @@ We will do both. First let's use the default bridge network. Let's also run a co
 with the image for the Spark master and also one for the Spark worker. Our architecture therefore
 looks like the figure below. 
 
+![Alt text](/images/docker_single_machine.png "docker_on_single_machine")
+
+Start the two containers up using
+```
+docker run -dit --name spark-master sdesilva26/spark_master:0.0.1 bash
+docker run -dit --name spark-worker sdesilva26/spark_worker:0.0.1 bash
+```
+The d flag means to run the container dettached, so in the background, the i flag
+indicates it should be interactive so that we can type into it, and the t flag specifies 
+the container should be started with a TTY so you can see the input and output.
+
+Check that the containers have started using 
+```
+docker container ls
+```
+and you should get something similar to
+
+![Alt text](/images/screenshot1.png "screenshot1")
+
+You can see which containers are connected to a network by using
+```
+docker network inspect bridge
+```
+and you should see something similar to the following
+
+![Alt text](/images/screenshot2.png "screenshot2")
+
+Attach to the spark-master container using
+```
+docker attach spark-master
+```
+You should the prompt to change now to a # which indicates that you are
+the root user inside of the container.
+
+Get the network interfaces as they look from within the container using
+```
+ip addr show
+```
+The interface with the title starting with 'eth0"' should display that
+this interface has the same IP address as what was shown for the spark-master
+container in the network inspect command from above.
+
+Check internet connection from within container using
+```
+ping -c 2 google.com
+```
+Now ping spark-worker container using its IP address from the network
+```
+ping -c 2 172.17.0.3
+```
+If you know ping by container name it will familiarity
+```
+ping -c 2 spark-worker
+```
+Now dettach from spark-master whilst leaving it running by holding down
+ctl and hitting p and then q.
 ### Containers on different machines
 
