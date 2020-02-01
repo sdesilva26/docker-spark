@@ -59,6 +59,7 @@ daemon on top of the VM's OS.*)
 By default, when you ask the Docker daemon to run a container, it adds it to the
 default bridge network called 'bridge'. You can also define a bridge network yourself.
 
+#### Deafult bridge network
 We will do both. First let's use the default bridge network. Let's also run a container
 with the image for the Spark master and also one for the Spark worker. Our architecture therefore
 looks like the figure below. 
@@ -119,5 +120,68 @@ ping -c 2 spark-worker
 ```
 Now dettach from spark-master whilst leaving it running by holding down
 ctl and hitting p and then q.
+
+#### User-defined bridge network
+
+Create the user-defined bridge network
+```
+docker network create --driver bridge spark-network
+```
+Then list the networks
+```
+docker network ls
+```
+and you should see
+
+![Alt text](/images/screenshot3.png "screenshot3")
+
+and now inspect the network
+```
+docker network inspect spark-net
+```
+
+![Alt text](/images/screenshot4.png "screenshot4")
+
+The IP address of the network's gateway should now be different to the IP address
+of the default gateway. It should also show that no containers are attached to it.
+
+Now stop the two running containers, remove them, then create two new containers
+that are attached to the new user-defined network.
+```
+docker kill spark-master spark-worker
+docker rm spark-master spark-worker
+
+docker run -dit --name spark-master --network spark-net sdesilva26/spark_master:latest bash
+docker run -dit --name spark-worker1 --network spark-net sdesilva26/spark_worker:latest bash
+```
+*NOTE: you can only connect to a single network when creating a docker container. But you
+can attach it to more networks after using the 'docker network connect <NETWORK_NAME> <CONTAINER_NAME>'
+command.*
+
+Again make sure the containers are running and inspect the network to make sure they
+have successfully attached to the spark-net network.
+
+The advantage of user-defined networks is as before containers can communicate via
+IP address in the network, but they can also resolve a container name to its IP
+address in the network now (this is called 'automatic service discovery').
+
+Attach to spark-master and ping spark-worker using its IP address and also its
+container name.
+```
+docker container attach spark-master
+
+ping -c 2 172.18.0.3
+ping -c 2 spark-worker
+```
+
+Dettach from the container using ctl followed by p and then q. 
+
+In the tutorial linked at the start of this section they go through the case of having
+a container in a user-defined network AND the bridge network. It can obviously communicate
+with the two containers in spark-net for instance. It could also communicate with a 
+container inside just the bridge network but it would have to ping it using its IP
+address as specified in the bridge network.
+
+
 ### Containers on different machines
 
