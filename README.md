@@ -185,3 +185,47 @@ address as specified in the bridge network.
 
 ### Containers on different machines
 
+For this section most of this will be following the instructions from Docker's
+website about using an [overlay network for standalone containers](#https://docs.docker.com/network/network-tutorial-overlay/).
+
+If you have two different machines then the following can be skipped.
+
+#### Settting up Amazon EC2 instances
+Otherwise you will need to setup at least 2 Amazon EC2 instances (or any other cloud computing provider
+you are comfortable with).
+
+1. Go to AWS and select EC2. 
+2. Go to launch instance and select *'Amazon Linux AMI 2018.03.0 (HVM),
+SSD Volume Type'* as the image type.
+3. Select t2.micro
+4. Set 'Number of instances' to 2 and leave everything else as default
+5. Click through to 'Configure Security Group' and select 'Create a new security group'
+6. As detailed in Docker's tutorial, 'Each host must have,.... the following ports open
+ between the two Docker hosts:
+
+    - TCP port 2377
+    - TCP and UDP port 7946
+    - UDP port 4789
+
+If you’re using AWS or a similar cloud computing platform, the easiest configuration is
+to use a security group that opens all incoming ports between the two hosts and the 
+SSH port from your client’s IP address.'
+7. Launch the instances and associate a key with your instances.
+
+Now that you have launched your ec2 instance you need to install docker. To do this
+type the following
+```
+sudo yum install docker -y
+
+sudo service docker start
+
+sudo docker run hello-world
+
+```
+To avoid having to use sudo all the time follow these [instructions](#https://github.com/sindresorhus/guides/blob/master/docker-without-sudo.md)
+and then disconnect from your instance and connect back to it again. You should now
+be able to run Docker commands without sudo.
+
+You're all set to go!
+
+#### User-defined overlay network
