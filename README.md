@@ -12,8 +12,8 @@ the different architectures we will work through.
     * [Building images from scratch](#building-images-from-scratch)
     * [Pulling images from repository](#pulling-images-from-repository)
 * [Docker networking](#docker-networking) 
-  * [Containers on single machine](#containers-on-single-machine)
-  * [Containers on different machine](#containers-on-different-machine)
+  * [Containers on single machine](#containers-on-a-single-machine)
+  * [Containers on different machine](#containers-on-different-machines)
   
   
 ## Create Docker images
