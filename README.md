@@ -275,7 +275,7 @@ docker swarm join --token <YOUR_TOKEN> <YOUR_PRIVATE_IP>:2377
 
 Once this is complete your architecture is now
 
-![Alt text](/images/docker_two_machines2.png "docker_on_two_machines2")
+![Alt text](/images/docker_two_machines2.png=1 "docker_on_two_machines2")
 
 Now create an attachable overlay network using
 ```
@@ -302,7 +302,7 @@ Check that it also has the same network ID has displayed in your first instance.
 
 The containers are now in the same overlay network and the architecture looks like
 
-![Alt text](/images/docker_two_machines3.png "docker_on_two_machines3")
+![Alt text](/images/docker_two_machines3.png? "docker_on_two_machines3")
 
 Now ping spark-worker from spark-master
 ```
