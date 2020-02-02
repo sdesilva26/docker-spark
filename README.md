@@ -241,7 +241,7 @@ docker pull sdesilva26/spark_worker:latest
 
 You're all set to go!
 
-#### Default overlay network
+#### User-defined overlay network
 
 Now that you have two separate machines running Docker that are on the same network
 you have an architecture like this
@@ -274,4 +274,48 @@ docker swarm join --token <YOUR_TOKEN> <YOUR_PRIVATE_IP>:2377
 ```
 
 Once this is complete your architecture is now
+
 ![Alt text](/images/docker_two_machines2.png "docker_on_two_machines2")
+
+Now create an attachable overlay network using
+```
+docker network create --driver overlay --attachable spark-overlay-net
+```
+
+Jump into the spark-master container and also connect it to the overlay network
+```
+docker run -it --name spark-master --network spark-overlay-net sdesilva26/spark_master:latest
+```
+
+On your other instance, list the networks available
+```
+docker network ls
+```
+and notice that the spark-overlay-net is not there yet.
+
+Start a spark-worker container that connects to the network
+```
+docker run -dit --name spark-worker --network spark-overlay-net sdesilva26/spark_worker:latest
+```
+Now you should see the spark-over-net if you check the networks on your second instance.
+Check that it also has the same network ID has displayed in your first instance.
+
+The containers are now in the same overlay network and the architecture looks like
+
+![Alt text](/images/docker_two_machines3.png "docker_on_two_machines3")
+
+Now ping spark-worker from spark-master
+```
+ping -c 2 spark-worker
+```
+and similarly from spark-worker
+```
+ping -c 2 spark-master
+```
+
+You're containers can successfully communicate over the overlay network!
+
+You must stop and remove the containers on each instance independently because
+Docker daemons operate independently and these are standalone containers. 
+You only have to remove the network on instance 1 because when you stop spark-worker
+ on instance 2, soark-overlay-net disappears.
