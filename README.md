@@ -246,7 +246,7 @@ You're all set to go!
 Now that you have two separate machines running Docker that are on the same network
 you have an architecture like this
 
-![Alt text](/images/docker_two_machines1.png "docker_on_two_machines1")
+![Alt text](/images/docker_two_machines11.png "docker_on_two_machines1")
 
 There is two instances running Docker inside of the same subnet
 which is itself inside of your personal bit of the Amazon cloud
@@ -275,7 +275,7 @@ docker swarm join --token <YOUR_TOKEN> <YOUR_PRIVATE_IP>:2377
 
 Once this is complete your architecture is now
 
-![Alt text](/images/docker_two_machines2.png=1 "docker_on_two_machines2")
+![Alt text](/images/docker_two_machines22.png "docker_on_two_machines2")
 
 Now create an attachable overlay network using
 ```
@@ -302,7 +302,7 @@ Check that it also has the same network ID has displayed in your first instance.
 
 The containers are now in the same overlay network and the architecture looks like
 
-![Alt text](/images/docker_two_machines3.png? "docker_on_two_machines3")
+![Alt text](/images/docker_two_machines33.png "docker_on_two_machines3")
 
 Now ping spark-worker from spark-master
 ```
