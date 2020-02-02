@@ -7,6 +7,7 @@ We will build up the complexity to eventually a full architecture of a Spark clu
 sequential fashion so as to hopefully build the understanding. The table of contents below shows 
 the different architectures we will work through.
 
+***
 ## TABLE OF CONTENTS
 * [Create Docker images](#create-docker-images)
     * [Building images from scratch](#building-images-from-scratch)
@@ -14,8 +15,9 @@ the different architectures we will work through.
 * [Docker networking](#docker-networking) 
   * [Containers on single machine](#containers-on-a-single-machine)
   * [Containers on different machine](#containers-on-different-machines)
+* [Apache Spark](#apache-spark)
   
-  
+***
 ## Create Docker images
 
 #### Building images from scratch
@@ -40,6 +42,7 @@ docker pull sdesilva26/spark_worker:latest
 *NOTE: You do not need to pull sdesilva26/spark_base:0.0.1 because, as the name suggests,
 this image is used as a base image for the other two images and so is not needed on your machine.*
 
+***
 ## Docker networking
 
 Now let's see how to get the containers communicating with each other. First
@@ -64,7 +67,7 @@ We will do both. First let's use the default bridge network. Let's also run a co
 with the image for the Spark master and also one for the Spark worker. Our architecture therefore
 looks like the figure below. 
 
-![Alt text](/images/docker_single_machine.png "docker_on_single_machine")
+![Alt text](images/docker_single_machine.png "docker_on_single_machine")
 
 Start the two containers up using
 ```
@@ -81,7 +84,7 @@ docker container ls
 ```
 and you should get something similar to
 
-![Alt text](/images/screenshot1.png "screenshot1")
+![Alt text](images/screenshot1.png "screenshot1")
 
 You can see which containers are connected to a network by using
 ```
@@ -89,7 +92,7 @@ docker network inspect bridge
 ```
 and you should see something similar to the following
 
-![Alt text](/images/screenshot2.png "screenshot2")
+![Alt text](images/screenshot2.png "screenshot2")
 
 Attach to the spark-master container using
 ```
@@ -133,14 +136,14 @@ docker network ls
 ```
 and you should see
 
-![Alt text](/images/screenshot3.png "screenshot3")
+![Alt text](images/screenshot3.png "screenshot3")
 
 and now inspect the network
 ```
 docker network inspect spark-net
 ```
 
-![Alt text](/images/screenshot4.png "screenshot4")
+![Alt text](images/screenshot4.png "screenshot4")
 
 The IP address of the network's gateway should now be different to the IP address
 of the default gateway. It should also show that no containers are attached to it.
@@ -246,7 +249,7 @@ You're all set to go!
 Now that you have two separate machines running Docker that are on the same network
 you have an architecture like this
 
-![Alt text](/images/docker_two_machines11.png "docker_on_two_machines1")
+![Alt text](images/docker_two_machines11.png "docker_on_two_machines1")
 
 There is two instances running Docker inside of the same subnet
 which is itself inside of your personal bit of the Amazon cloud
@@ -262,7 +265,7 @@ docker swarm init
 ```
 
 You should see something similar to
-![Alt text](/images/screenshot5.png "screenshot5")
+![Alt text](images/screenshot5.png "screenshot5")
 
 The IP address and port that is shown from this command is referring to the IP and port of the host machine that
 the Docker daemon is running on. Hence the IP address should match the private IP address of your ec2 instance.
@@ -275,7 +278,7 @@ docker swarm join --token <YOUR_TOKEN> <YOUR_PRIVATE_IP>:2377
 
 Once this is complete your architecture is now
 
-![Alt text](/images/docker_two_machines22.png "docker_on_two_machines2")
+![Alt text](images/docker_two_machines22.png "docker_on_two_machines2")
 
 Now create an attachable overlay network using
 ```
@@ -302,7 +305,7 @@ Check that it also has the same network ID has displayed in your first instance.
 
 The containers are now in the same overlay network and the architecture looks like
 
-![Alt text](/images/docker_two_machines33.png "docker_on_two_machines3")
+![Alt text](images/docker_two_machines33.png "docker_on_two_machines3")
 
 Now ping spark-worker from spark-master
 ```
@@ -318,4 +321,73 @@ You're containers can successfully communicate over the overlay network!
 You must stop and remove the containers on each instance independently because
 Docker daemons operate independently and these are standalone containers. 
 You only have to remove the network on instance 1 because when you stop spark-worker
- on instance 2, soark-overlay-net disappears.
+ on instance 2, spark-overlay-net disappears.
+ 
+ ***
+ ## Apache Spark
+ Now lets see how to set up a Spark cluster and perform distributed computation using this
+ cluster. In the first part of this section, as in the 'Docker networking' section I will
+ describe how to do this on your local machine. In the second half I will move on to describe how
+ to set up a distributed Spark cluster with each worker and the master node on different hosts.
+ 
+ #### Spark cluster - local
+ 1. Go to the bin directory of you spark installation using the command line. 
+ It will be something like 
+ "spark-2.4.3-bin-hadoop2.7\bin" and type the following to set up a master node
+     ```
+    spark-class org.apache.spark.deploy.master/Master
+    ```
+    this should print out that you have started the service 'sparkMaster' along with the port. 
+
+2. Go to your browser and navigate to the Master node UI
+    ```
+    http://<IP_ADDRESS>:8080
+    ``` 
+    or
+    ```
+    http://localhost:8080
+    ``` 
+
+    you should see something like
+    ![Alt text](images/spark_screenshot1.png "spark_screenshot1")
+
+3. Open a new command line shell and again navigate to the bin directory and use the following
+to attach a worker to the Master node
+
+    ```
+    spark-class org.apache.spark.deploy.worker.Worker -c 2 -m 10g -p 7078 spark://<IP_ADDRESS>:7077
+    ```
+    The flags in the above command specify to attach a worker with 2 core, 10GB of memory on port 7078
+    of the network to a spark master node which is at the address <IP_ADDRESS>:7077.
+
+4. Again check your Master node UI and see that the worker has been attached. Also go to 
+the UI for the worker. This info should have been returned to the console when you attached 
+the worker to the master node. By default the UI will try to attach to port 8080, if it fails
+it will try port 8081, and repeat this process until a free port is found. You should see the
+following
+    
+    ![Alt text](images/spark_screenshot2.png)
+    
+ 5. Open a new command line console and perform a simple job on the cluster. Use
+    ```
+    spark-shell.cmd
+    ```
+    to open a scala shell. Then type
+    ```
+    val NUM_SAMPLES=10000
+    
+    val count = sc.parallelize(1 to NUM_SAMPLES).filter { _ =>
+      val x = math.random
+      val y = math.random
+      x*x + y*y < 1
+    }.count()
+    ```
+    and you should see the console return an estimation of pi.
+6. Navigate to the application UI. This information is printed to the console
+when starting up the scala shell. It will be http://<IP_ADDRESS>:4040. It uses
+4040 by default and increments by 1 and retries if port is already taken. You
+should see something similar to
+
+    ![Alt text](images/spark_screenshot3.png "spark_screenshot3")
+
+    
