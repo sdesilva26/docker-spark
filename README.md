@@ -275,7 +275,7 @@ docker swarm join --token <YOUR_TOKEN> <YOUR_PRIVATE_IP>:2377
 
 Once this is complete your architecture is now
 
-![Alt text](/images/docker_two_machines2.png? "docker_on_two_machines2")
+![Alt text](/images/docker_two_machines2.png=1 "docker_on_two_machines2")
 
 Now create an attachable overlay network using
 ```
