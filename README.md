@@ -255,3 +255,23 @@ called a virtual private cloud (VPC).
 We want to create a network that encapsulates both Docker containers. To do
 this we will first create a Docker swarm, which essentially links the daemons together,
 and then we will create an overlay network and put our containers in that network.
+
+Set up a Docker daemon to be the swarm manager by running in one of the ec2 instances the following
+```
+docker swarm init
+```
+
+You should see something similar to
+![Alt text](/images/screenshot5.png "screenshot5")
+
+The IP address and port that is shown from this command is referring to the IP and port of the host machine that
+the Docker daemon is running on. Hence the IP address should match the private IP address of your ec2 instance.
+Check this in the ec2 dashboard.
+
+You can now join the second ec2 instance to the swarm by running
+```
+docker swarm join --token <YOUR_TOKEN> <YOUR_PRIVATE_IP>:2377
+```
+
+Once this is complete your architecture is now
+![Alt text](/images/docker_two_machines2.png "docker_on_two_machines2")
