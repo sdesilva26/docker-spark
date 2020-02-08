@@ -1,7 +1,13 @@
-FROM sdesilva26/spark_base:0.0.1
+FROM jupyter/scipy-notebook
+
+RUN mkdir spark/
+COPY --from=sdesilva26/spark_base ./spark ./spark
+
+COPY ./requirements.txt .
+RUN pip install -r requirements.txt
 
 ENV SPARK_WORKER_WEBUI_PORT 8081
 ENV SPARK_WORKER_LOG /spark/logs
 ENV SPARK_MASTER "spark://spark-master:7077"
 
-EXPOSE 4040
+EXPOSE 4040 8888

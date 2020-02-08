@@ -17,7 +17,10 @@ the different architectures we will work through.
   * [Containers on different machine](#containers-on-different-machines)
 * [Apache Spark](#apache-spark)
     * [Spark cluster - local machine](#spark-cluster---local-machine)
-    * [Spark cluster & Docker containers - local machine](#spark-cluster-&-docker-containers---local-machine)
+* [Docker &  Apache Spark](#docker-&-apache-spark)
+    * [Local Machine](#local-machine)
+        * [Spark cluster & Docker containers](#spark-cluster-&-docker-containers)
+        * [Spark & Docker Architecture](#spark-&-docker-architecture)
   
 ***
 ## Create Docker images
@@ -30,6 +33,7 @@ Next, run the following commands
 docker build -f Dockerfile_base -t {YOUR_TAG} .
 docker build -f Dockerfile_master -t {YOUR_TAG} .
 docker build -f Dockerfile_worker -t {YOUR_TAG} .
+docker build -f Dockerfile_submit -t {YOUR_TAG} .
 ```
 and then you may wish to push these images to your repository on Docker or somewhere else 
 using the 'Docker push' command.
@@ -40,6 +44,7 @@ the following commands
 ```
 docker pull sdesilva26/spark_master:latest
 docker pull sdesilva26/spark_worker:latest
+docker pull sdesilva26/spark_submit:latest
 ```
 *NOTE: You do not need to pull sdesilva26/spark_base:0.0.1 because, as the name suggests,
 this image is used as a base image for the other two images and so is not needed on your machine.*
@@ -179,7 +184,7 @@ ping -c 2 172.18.0.3
 ping -c 2 spark-worker
 ```
 
-Dettach from the container using ctl followed by p and then q. 
+Detach from the container using ctl followed by p and then q. 
 
 In the tutorial linked at the start of this section they go through the case of having
 a container in a user-defined network AND the bridge network. It can obviously communicate
@@ -203,7 +208,7 @@ you are comfortable with).
 2. Go to launch instance and select *'Amazon Linux AMI 2018.03.0 (HVM),
 SSD Volume Type'* as the image type.
 3. Select t2.micro
-4. Set 'Number of instances' to 2 and leave everything else as default
+4. Set 'Number of instances' to 1 and leave everything else as default
 5. Click through to 'Configure Security Group' and select 'Create a new security group'
 6. As detailed in Docker's tutorial, 'Each host must have,.... the following ports open
  between the two Docker hosts:
@@ -215,7 +220,10 @@ SSD Volume Type'* as the image type.
 If you’re using AWS or a similar cloud computing platform, the easiest configuration is
 to use a security group that opens all incoming ports between the two hosts and the 
 SSH port from your client’s IP address.'
-7. Launch the instances and associate a key with your instances.
+7. Launch the instance and associate a key with your instances.
+
+8. Now go through the same procedure but instead of selecting t2.micro, select c4.xlarge and launch 2 of these
+instances. This will be helpful for later on when we really want to show off the power of spark.
 
 Now that you have launched your ec2 instance you need to install docker. To do this
 type the following
@@ -332,12 +340,14 @@ You only have to remove the network on instance 1 because when you stop spark-wo
  describe how to do this on your local machine. In the second half I will move on to describe how
  to set up a distributed Spark cluster with each worker and the master node on different hosts.
  
- #### Spark cluster - local
+ ### Local Machine
+ 
+ #### Spark cluster & Docker containers
  1. Go to the bin directory of you spark installation using the command line. 
  It will be something like 
  "spark-2.4.3-bin-hadoop2.7\bin" and type the following to set up a master node
      ```
-    spark-class org.apache.spark.deploy.master/Master
+    spark-class org.apache.spark.deploy.master.Master
     ```
     this should print out that you have started the service 'sparkMaster' along with the port. 
 
@@ -394,6 +404,12 @@ should see something similar to
     
  Your Spark cluster is now complete on your local machine.
  
+ ## Docker & Apache Spark
+ ### Local machine
+ 
+ This whole section will detail how to setup an Apache Spark cluster running inside Docker containers
+ on your local machine. The second half of this section will detail the architecture of this tp help the
+ user in understanding the layout and the advantage of running everything inside of Docker containers.
  #### Spark cluster + Docker containers - local machine  
 
 Now we are going to use spark running inside of containers to set-up a cluster. To do this we will 
@@ -485,7 +501,7 @@ web UI http://localhost:8082.
     
 You have now submitted and run a spark job where the spark cluster is operating inside Docker containers.
 
-#### Spark & Docker architecture
+#### Spark & Docker Architecture
 
 You can skip this section, however I would advise going through it to gain a better understanding of why we are able
 to map certain ports to the machine's ports and use Docker network's automatic .
@@ -504,11 +520,11 @@ From Docker's [documentation](#https://docs.docker.com/config/containers/contain
  by simply referring to the container's name, e.g. spark-master is the same as giving the IP address that Docker
  assigns to the spark-master container.
  
- Furthemore, when we run an image to create a container and make a port mapping such as -p 8080:8080 we 
- are really saying 'connect the device at <HOST_IP_ADDRESS>:<HOST_PORT> to the container device at 
+ Furthermore, when we run an image to create a container and make a port mapping such as -p 8080:8080 we 
+ are really saying 'connect the port at <HOST_IP_ADDRESS>:<HOST_PORT> to the container port at 
  <DOCKER_IP_ADDRESS>:<DOCKER_PORT>' (red lines in the above image). This is why we can expose the same port on 
  replica containers (such as 8081 in the spark-worker containers) but they **must** be mapped to different 
- ports on the host machine as obivously the host only has one port 8081 at a certain IP address.
+ ports on the host machine as obviously the host only has one port 8081 at a certain IP address.
  
  Then we added in the spark-submit container. Why run this inside the bridge network? The basic architecture of Spark
  (with no Docker containers) is as follows
@@ -531,3 +547,73 @@ From Docker's [documentation](#https://docs.docker.com/config/containers/contain
 
 Now we simply pass the address of the master node when we set up a spark program within the spark-submit container
 and from there it is freely able to resolve and communicate with the nodes in that cluster.
+
+ ### Multiple machines
+ Now we can finally bring everything together to show what we would really like to do which is run 
+ an Apache Spark cluster within Docker containers on different machines.
+ 
+ 1. As before, follow the steps from the earlier section to create a docker swarm and join different hosts to 
+ this swarm. 
+ 2. Then on the t2.micro instance create the overlay network
+    ``` 
+    docker network create --driver overlay spark-net
+    ```
+ 3. Run a the spark_master image to create a container that will be the master node
+    ``` 
+    docker rn -it --name spark-master --network spark-net -p 8080:8080 sdesilva26/spark_master:latest
+    ```
+    *NOTE: it is important to remember the name of this container (spark-master in this case) as this is what
+    other containers in the network will use to resolve its IP address.
+    
+ 4.  Run the following to crate a spark master node
+    ```
+    ./spark/bin/spark-class org.apache.spark.deploy.master.Master
+    ```
+ 5. Check the master node has been setup correctly by going to http://<PUBLIC_IPv4_ADDRESS_OF_INSTANCE>:8080.
+ 
+ 6. Now on the larger AWS instances (c4.xlarge) create one container on each by using
+    ``` 
+    docker run -it --name spark-worker1 --network spark-net -p 8081:8081 sdesilva26/spark_worker:latest
+    docker run -it --name spark-worker2 --network spark-net -p 8082:8081 sdesilva26/spark_worker:latest
+    ```
+ 7. Inside each of them run the following to attach them as workers to the spark-master
+    ``` 
+    ./spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    ```
+    
+    Notice how you can specify spark-master as the address of the master instead of its full IP address. By default
+    this will set up a worker on the current machine where it takes up all available cores and memory.
+ 8. Check the master web UI at http://<PUBLIC_IP_ADDRESS_OF_INSTANCE>:8080 to make sure the workers were added
+ successfully.
+ 9. Now in a third AWS instance attach docker to the overlay network and then create a spark-submit container
+    ``` 
+    docker run -it --name spark-submit --network spark-net -p 4040:4040 sdesilva26/spark_submit:latest
+    ```
+ 10. Launch a spark shell using
+    ``` 
+    ./spark/bin/spark-shell spark://spark-master:7077
+    ```
+ 11. Now, as before, run a test program such as 
+ 
+    ```
+    val myRange = spark.range(100000).toDF("number")
+    
+    val divisBy2 = myRange.where("number % 2 = 0")
+    
+    divisiBy2.count()
+    ```
+    
+    You should get a result back to the console. Furthermore, you should be able to check the driver 
+    by going to the IP address of the container that spark-submit is running on and specifying port 4040.
+    *NOTE: The more common way of submitting jobs to the cluster is to use the spark-submit script. For example,
+        ```
+        ./bin/spark-submit \
+          --master spark://207.184.161.138:7077 \
+          examples/src/main/python/pi.py \
+          1000
+        ``` 
+    
+ That is it as far as connecting up a Spark cluster running in Docker containers is concerned. The next section will
+ briefly go over the architecture we have set up in this section. The sections following that will be more advanced
+ and specific to deep learning.
+ 
