@@ -16,6 +16,8 @@ the different architectures we will work through.
   * [Containers on single machine](#containers-on-a-single-machine)
   * [Containers on different machine](#containers-on-different-machines)
 * [Apache Spark](#apache-spark)
+    * [Spark cluster - local machine](#spark-cluster---local-machine)
+    * [Spark cluster & Docker containers - local machine](#spark-cluster-&-docker-containers---local-machine)
   
 ***
 ## Create Docker images
@@ -389,5 +391,96 @@ when starting up the scala shell. It will be http://<IP_ADDRESS>:4040. It uses
 should see something similar to
 
     ![Alt text](images/spark_screenshot3.png "spark_screenshot3")
-
     
+ Your Spark cluster is now complete on your local machine.
+ 
+ #### Spark cluster + Docker containers - local machine  
+
+Now we are going to use spark running inside of containers to set-up a cluster. To do this we will 
+create a user-defined bridge network as we did in the previous section.
+
+1. Create user defined bridge network inside of Docker using (if you haven't already) 
+    ```
+   docker create network -d bridge spark-net 
+   ```
+2. Create a spark-master container inside of the bridge network
+    ``` 
+   docker run -dit --name spark-master --network spark-net -p 8080:8080 sdesilva26/spark_master:latest sh 
+   ```
+3. Then connect to the running container 
+    ``` 
+   docker container attach spark-master sh 
+   ```
+   
+4. Initiate the container as a spark master node by going to
+    ``` 
+   cd spark/bin/ 
+   ```
+   and then running
+   ``` 
+   ./spark--class org.apache.spark.deploy.master.Master
+   ```
+ 5. You should now be able to see the Master web UI by going to http://localhost:8080 or http://<YOUR_IP_ADDRESS>:8080.
+ 6. Run a worker container
+    ``` 
+    docker run -dit --name spark-worker1 --network spark-net -p 8081:8081 sdesilva26/spark_worker:latest sh
+    ```
+7. Attach to the running spark-worker
+    ``` 
+   docker container attach spark-worker1 
+   ```
+8. Attach this spark worker to the spark master using (from within the bin directory of the spark
+installation folder)
+
+    ``` 
+    ./spark-class org.apache.spark.deploy.worker.Worker spark://spark-worker:7077 -c 1 -m 4g
+   ```
+   
+   This will register a worker to the spark-master node with 1 core and 4GB of memory available to the cluster.
+   
+9. Verify the worker has connected to the cluster by going to http://localhost:8080 and http://localhost:8081 
+(worker web UI)
+
+10. Start a second worker
+    ``` 
+    docker run -it --name spark-worker2 --network spark-net -p 8082:8081 sdesilva26/spark_worker:latest sh
+    ```
+    
+    The flag -p 8082:8081 now maps the exposed 8081 port of the docker container to the unassigned 8082 port of
+    the host machine 
+    
+11. Again, verify your worker was successfully added by navigating to the Master web UI and also the second workers
+web UI http://localhost:8082.
+
+12. Spin-up a spark_submit container
+    ``` 
+    docker run -it --name spark-submit --network spark-net -p 4040:4040 sdesilva26/spark_submit:latest sh
+    ```
+    
+    This container will act as our driver node, i.e. from where the main() method of your programs will run.
+    
+13. From within the container navigate to the spark bin directory and jump into a scala shall using
+    ``` 
+    ./spark-shell --master spark://spark-master:7077 
+    ```
+    
+    This command connects the driver to the cluster by specifying the address of the master node.
+    
+14. If the driver connects successfully go to http://localhost:4040 to check the driver web UI.
+15. Run an example spark job by typing in the scala shell
+    ``` 
+    val myRange = spark.range(10000).toDF("number")
+    
+    val divisBY2 = myRange.where("number % 2 = 0")
+    
+    divisBy2.count()
+    ```
+16. Go back to the driver web UI and you should see something similar to 
+
+    ![Alt text](images/spark_screenshot4.png)
+    
+    where you can see info about the job that was run, the stages completed and the tasks completed.
+    The tabs at the top allow you to get more info about the cluster configuration.
+    
+    
+You have now submitted and run a spark job where the spark cluster is operating inside Docker containers.
