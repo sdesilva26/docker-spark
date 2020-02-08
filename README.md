@@ -484,3 +484,50 @@ web UI http://localhost:8082.
     
     
 You have now submitted and run a spark job where the spark cluster is operating inside Docker containers.
+
+#### Spark & Docker architecture
+
+You can skip this section, however I would advise going through it to gain a better understanding of why we are able
+to map certain ports to the machine's ports and use Docker network's automatic .
+
+The architecture we have just created, before adding the driver node, looks like this
+
+![Alt text](images/spark_docker_single_machine_port_mapping.png)
+
+From Docker's [documentation](#https://docs.docker.com/config/containers/container-networking/) they say
+ 
+'The type of network a container uses, whether it is a bridge, an overlay, a macvlan network,
+ or a custom network plugin, is transparent from within the container. From the container’s 
+ point of view, it has a network interface with an IP address,... '.
+ 
+ This IP address that the container is situated at is resolvable by other containers within the same network
+ by simply referring to the container's name, e.g. spark-master is the same as giving the IP address that Docker
+ assigns to the spark-master container.
+ 
+ Furthemore, when we run an image to create a container and make a port mapping such as -p 8080:8080 we 
+ are really saying 'connect the device at <HOST_IP_ADDRESS>:<HOST_PORT> to the container device at 
+ <DOCKER_IP_ADDRESS>:<DOCKER_PORT>' (red lines in the above image). This is why we can expose the same port on 
+ replica containers (such as 8081 in the spark-worker containers) but they **must** be mapped to different 
+ ports on the host machine as obivously the host only has one port 8081 at a certain IP address.
+ 
+ Then we added in the spark-submit container. Why run this inside the bridge network? The basic architecture of Spark
+ (with no Docker containers) is as follows
+ 
+ ![Alt text](images/cluster-overview.png)
+ 
+ The driver program, which in our case is inside the spark-submit node, needs to be able to communicate back and
+ forth with both the master and worker nodes. Therefore, if we placed the spark-submit node outside of the Docker network
+ , and even worse, outside of Docker, we would have a lot of headaches having to map different Docker container
+ ports to the appropriate place on the host machine, and then specify these ports for the driver program. This 
+ is not impossible, but made hard and tedious by the fact that I believe the driver chooses random ports to
+ communicate with the workers. You could set this property in the spark config file but this seems to be unnecessary
+ work. 
+ 
+ Therefore, we have placed the driver program within Docker and furthermore we are running the driver
+ from within a container that is attached to the spark-net network. We have also mapped it's port 4040
+ to the host machine's port 4040 to view the web UI.
+ 
+ ![Alt text](images/spark_docker_single_machine_port_mapping_driver.png)
+
+Now we simply pass the address of the master node when we set up a spark program within the spark-submit container
+and from there it is freely able to resolve and communicate with the nodes in that cluster.
