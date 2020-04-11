@@ -1,4 +1,4 @@
-FROM sdesilva26/spark_base:0.0.1
+FROM sdesilva26/spark_base
 
 ENV SPARK_MASTER_PORT 7077
 ENV SPARK_MASTER_WEBUI_PORT 8080
