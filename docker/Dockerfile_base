@@ -44,3 +44,9 @@ RUN tar -xzf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
     mv spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} /spark && \
     rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
     export PATH=$SPARK_HOME/bin:$PATH
+
+# Install large text file
+RUN wget "http://mattmahoney.net/dc/enwik8.zip" && \
+    unzip "enwik8.zip" && \
+    mv "enwik8" $SPARK_HOME/data/ && \
+    rm "enwik8.zip"

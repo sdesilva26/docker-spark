@@ -53,7 +53,7 @@ crossval = CrossValidator(estimator=pipeline, estimatorParamMaps=paramGrid,
 start_time = time.time()
 cvModel = crossval.fit(training)
 end_time = time.time()
-print(end_time - start_time, " seconds")
+print("The cross validation and hyperparameter search took: ", end_time - start_time, " seconds")
 
 # Prepare test documents, which are unlabeled.
 test = spark.createDataFrame([

@@ -4,6 +4,9 @@ COPY ./resources/requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY ./examples/ ./examples/
+COPY ./resources/log4j.properties ./resources/spark-defaults.conf $SPARK_HOME/conf/
+
+
 
 ENV SPARK_WORKER_WEBUI_PORT 8081
 ENV SPARK_WORKER_LOG /spark/logs
