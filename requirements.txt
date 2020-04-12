@@ -1,4 +1,0 @@
-keras
-tensorflow
-pyspark
-elephas
