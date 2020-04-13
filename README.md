@@ -21,3 +21,93 @@ cluster to get optimal performance with some demonstrations.
 ## Examples
 The examples/ directory contains some example python scripts and jupyter notebooks for demonstrating various aspects of 
 of Spark.
+
+# Docker & Spark
+
+Tutorial of how to set up a spark cluster running inside Docker containers on separate machines.
+
+## Getting Started
+
+To get started, pull the following three docker images
+```
+    docker pull sdesilva26/spark_master:latest
+    docker pull sdesilva26/spark_worker:latest
+    docker pull sdesilva26/spark_submit:latest
+```
+Create a docker swarm using
+``` 
+    docker swarm init
+```
+then attach the other machines you wish to be in the cluster to the docker swarm by copying and
+ pasting the output from the above command.
+ 
+Create an overlay network by running the following on one of the machines
+``` 
+    docker network create -d overlay --attachable spark-net
+```
+On the machine you wish to be the master node of the Spark cluster run
+``` 
+    docker run -it --name spark-master --network spark-net -p 8080:8080 sdeislva26/spark_master
+:latest
+```
+On the machines you wish to be workers run
+``` 
+    docker run -it --name spark-worker1 --network spark-net -p 8081:8081 -e MEMORY=6G -e
+         CORES=3 sdesilva26/spark_worker:latest
+```
+substituting the values for CORES and MEMORY to be cores of the machine - 1 and RAM of machine
+ - 1GB.
+ 
+Start a driver node by running
+``` 
+    docker run -it --name spark-submit --network spark-net -p 4040:4040 sdesilva26/spark_submit
+:latest bash
+```
+
+You can now either submit files to spark using 
+``` 
+    $SPARK_HOME/bin/spark-submit [flags] file 
+```
+
+or run a pyspark shell
+``` 
+    $SPARK_HOME/bin/pyspark
+```
+NOTE: by default the spark-submit node will try to connect to the cluster manager at spark
+://spark-master:7077 so if you change the name of the container running the sdesilva26
+/spark_master image then you must pass this change as follows
+
+``` 
+    docker run -it --name spark-submit --network spark-net -p 4040:4040 -e MASTER_CONTAINER_NAME
+    =<your-master-container-name> sdesilva26/spark_submit
+    :latest bash
+```
+ 
+
+ 
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+
+### Prerequisites
+
+I assume knowledge of basic Docker commands such as run, build, etc.
+
+You will need to set up multiple machines with a cloud provider such as AWS or Azure.
+
+
+## Tutorial
+For the full tutorial refer to the [tutorial.md](tutorial.md)
+
+## Issues
+For issues that you may encounter and their solutions refer to the [issues.md](issues.md)
+
+## Authors
+
+* Shane de Silva
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+## Acknowledgments
+
+* [Marco Villarreal's](https://github.com/mvillarrealb/) docker images for the starting point for my own docker images 

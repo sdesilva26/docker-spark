@@ -63,7 +63,7 @@ then on different machines.
 ### Containers on a single machine
 
 Most of the following is taken from Docker's website in their section 
-about [networking with standalone containers](#https://docs.docker.com/network/network-tutorial-standalone/).
+about [networking with standalone containers](tutorial.md#https://docs.docker.com/network/network-tutorial-standalone/).
 
 Docker running on your machine under the hood starts a Docker daemon which interacts
 with tthe linux OS to execute your commands.(*NOTE: if you're running Docker on a 
@@ -200,7 +200,7 @@ address as specified in the bridge network.
 ### Containers on different machines
 
 For this section most of this will be following the instructions from Docker's
-website about using an [overlay network for standalone containers](#https://docs.docker.com/network/network-tutorial-overlay/).
+website about using an [overlay network for standalone containers](tutorial.md#https://docs.docker.com/network/network-tutorial-overlay/).
 
 If you have two different machines then the following section can be skipped.
 
