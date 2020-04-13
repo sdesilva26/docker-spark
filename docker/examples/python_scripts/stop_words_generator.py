@@ -18,16 +18,16 @@ if __name__ == "__main__":
 		.getOrCreate()
 	start_time = time.time()
 	lines = spark.read.text(sys.argv[1]).rdd.map(lambda r: r[0])
-	counts = lines.flatMap(lambda x: x.split(' ')) \
-		.map(lambda x: (x, 1)) \
-		.reduceByKey(add) \
-		.map(lambda x: (x[1], x[0])) \
-		.sortByKey(False)
+counts = lines.flatMap(lambda x: x.split(' ')) \
+	.map(lambda x: (x, 1)) \
+	.reduceByKey(add) \
+	.map(lambda x: (x[1], x[0])) \
+	.sortByKey(False)
 
-	output = counts.take(100)
-	print("The 100 most frequent words are :\n")
-	for (count, word) in output:
-		print("{} ---> {}".format(word, count))
+output = counts.take(100)
+print("The 100 most frequent words are :\n")
+for (count, word) in output:
+	print("{} ---> {}".format(word, count))
 
 	end_time = time.time();
 

@@ -19,8 +19,12 @@ the different architectures we will work through.
     * [Spark cluster - local machine](#spark-cluster---local-machine)
 * [Docker &  Apache Spark](#docker-&-apache-spark)
     * [Local Machine](#local-machine)
-        * [Spark cluster & Docker containers](#spark-cluster-&-docker-containers)
-        * [Spark & Docker Architecture](#spark-&-docker-architecture)
+        * [Spark Cluster](#spark-cluster-&-docker-containers)
+        * [Architecture](#spark-&-docker-architecture)
+    * [Multiple Machines](#multiple-machines)
+        * [Spark Cluster](#spark-cluster)
+        * [Architecture](#architecture)
+        
   
 ***
 ## Create Docker images
@@ -78,8 +82,8 @@ looks like the figure below.
 
 Start the two containers up using
 ```
-docker run -dit --name spark-master sdesilva26/spark_master:0.0.1 bash
-docker run -dit --name spark-worker sdesilva26/spark_worker:0.0.1 bash
+docker run -dit --name spark-master --entrypoint /bin/bash sdesilva26/spark_master
+docker run -dit --name spark-worker --entrypoint /bin/bash sdesilva26/spark_worker
 ```
 The d flag means to run the container dettached, so in the background, the i flag
 indicates it should be interactive so that we can type into it, and the t flag specifies 
@@ -161,8 +165,8 @@ that are attached to the new user-defined network.
 docker kill spark-master spark-worker
 docker rm spark-master spark-worker
 
-docker run -dit --name spark-master --network spark-net sdesilva26/spark_master:latest bash
-docker run -dit --name spark-worker1 --network spark-net sdesilva26/spark_worker:latest bash
+docker run -dit --name spark-master --network spark-net --entrypoint /bin/bash sdesilva26/spark_master
+docker run -dit --name spark-worker1 --network spark-net --entrypoint /bin/bash sdesilva26/spark_worker
 ```
 *NOTE: you can only connect to a single network when creating a docker container. But you
 can attach it to more networks after using the 'docker network connect <NETWORK_NAME> <CONTAINER_NAME>'
@@ -206,7 +210,7 @@ you are comfortable with).
 
 1. Go to AWS and select EC2. 
 2. Go to launch instance and select *'Amazon Linux AMI 2018.03.0 (HVM),
-SSD Volume Type'* as the image type.
+SSD Volume Type'* (you can us any instance type here, but this configuration worked for me) as the image type.
 3. Select t2.micro
 4. Set 'Number of instances' to 1 and leave everything else as default
 5. Click through to 'Configure Security Group' and select 'Create a new security group'
@@ -297,7 +301,7 @@ docker network create --driver overlay --attachable spark-overlay-net
 
 Jump into the spark-master container and also connect it to the overlay network
 ```
-docker run -it --name spark-master --network spark-overlay-net sdesilva26/spark_master:latest
+docker run -it --name spark-master --network spark-overlay-net --entrypoint /bin/bash sdesilva26/spark_master:latest
 ```
 
 On your other instance, list the networks available
@@ -308,7 +312,7 @@ and notice that the spark-overlay-net is not there yet.
 
 Start a spark-worker container that connects to the network
 ```
-docker run -dit --name spark-worker --network spark-overlay-net sdesilva26/spark_worker:latest
+docker run -dit --name spark-worker --network spark-overlay-net --entrypoint /bin/bash sdesilva26/spark_worker:latest
 ```
 Now you should see the spark-over-net if you check the networks on your second instance.
 Check that it also has the same network ID has displayed in your first instance.
@@ -342,10 +346,10 @@ You only have to remove the network on instance 1 because when you stop spark-wo
  
  ### Local Machine
  
- #### Spark cluster & Docker containers
+ #### Spark cluster
  1. Go to the bin directory of you spark installation using the command line. 
  It will be something like 
- "spark-2.4.3-bin-hadoop2.7\bin" and type the following to set up a master node
+ "spark-2.4.3-bin-hadoop2.7/bin" and type the following to set up a master node
      ```
     spark-class org.apache.spark.deploy.master.Master
     ```
@@ -369,7 +373,7 @@ to attach a worker to the Master node
     ```
     spark-class org.apache.spark.deploy.worker.Worker -c 2 -m 10g -p 7078 spark://<IP_ADDRESS>:7077
     ```
-    The flags in the above command specify to attach a worker with 2 core, 10GB of memory on port 7078
+    The flags in the above command specify to attach a worker with 2 cores, 10GB of memory on port 7078
     of the network to a spark master node which is at the address <IP_ADDRESS>:7077.
 
 4. Again check your Master node UI and see that the worker has been attached. Also go to 
@@ -382,17 +386,16 @@ following
     
  5. Open a new command line console and perform a simple job on the cluster. Use
     ```
-    spark-shell.cmd
+    spark-2.4.3-bin-hadoop2.7/bin/spark-shell --master spark://localhost:7077
     ```
     to open a scala shell. Then type
     ```
     val NUM_SAMPLES=10000
-    
-    val count = sc.parallelize(1 to NUM_SAMPLES).filter { _ =>
+    var count = sc.parallelize(1 to NUM_SAMPLES).filter { _ =>
       val x = math.random
       val y = math.random
       x*x + y*y < 1
-    }.count()
+    }.count() * 4/(NUM_SAMPLES.toFloat)
     ```
     and you should see the console return an estimation of pi.
 6. Navigate to the application UI. This information is printed to the console
@@ -408,10 +411,10 @@ should see something similar to
  ### Local machine
  
  This whole section will detail how to setup an Apache Spark cluster running inside Docker containers
- on your local machine. The second half of this section will detail the architecture of this tp help the
+ on your local machine. The second half of this section will detail the architecture of this to help the
  user in understanding the layout and the advantage of running everything inside of Docker containers.
  
- #### Spark cluster + Docker containers - local machine  
+ #### Spark cluster 
 
 Now we are going to use spark running inside of containers to set-up a cluster. To do this we will 
 create a user-defined bridge network as we did in the previous section.
@@ -422,45 +425,40 @@ create a user-defined bridge network as we did in the previous section.
    ```
 2. Create a spark-master container inside of the bridge network
     ``` 
-   docker run -dit --name spark-master --network spark-net -p 8080:8080 sdesilva26/spark_master:latest sh 
+   docker run -dit --name spark-master --network spark-net -p 8080:8080 sdesilva26/spark_master bash
    ```
+   
+   *NOTE: by default the container will start up a spark master node. To override this behaviour simply pass -entrypoint
+    /bin/bash to the docker run command*
+    
 3. Then connect to the running container 
     ``` 
-   docker container attach spark-master sh 
+   docker attach spark-master
    ```
-   
-4. Initiate the container as a spark master node by going to
+ 4. You should now be able to see the Master web UI by going to http://localhost:8080 or http
+ ://<YOUR_IP_ADDRESS>:8080.
+ 
+ 5. Run a worker container
     ``` 
-   cd spark/bin/ 
-   ```
-   and then running
-   ``` 
-   ./spark--class org.apache.spark.deploy.master.Master
-   ```
- 5. You should now be able to see the Master web UI by going to http://localhost:8080 or http://<YOUR_IP_ADDRESS>:8080.
- 6. Run a worker container
-    ``` 
-    docker run -dit --name spark-worker1 --network spark-net -p 8081:8081 sdesilva26/spark_worker:latest sh
+    docker run -dit --name spark-worker1 --network spark-net -p 8081:8081 -e MEMORY=2G -e CORES=1
+      sdesilva26/spark_worker bash
     ```
+    *NOTE: the flags CORES and MEMORY specify how many cores and how much memory on the machine
+     that the container is running in should the worker take. By default they are set to 3 and 6G
+    if nothing is passed.*
+    
 7. Attach to the running spark-worker
     ``` 
-   docker container attach spark-worker1 
+   docker attach spark-worker1 
    ```
-8. Attach this spark worker to the spark master using (from within the bin directory of the spark
-installation folder)
-
-    ``` 
-    ./spark-class org.apache.spark.deploy.worker.Worker spark://spark-worker:7077 -c 1 -m 4g
-   ```
-   
-   This will register a worker to the spark-master node with 1 core and 4GB of memory available to the cluster.
-   
-9. Verify the worker has connected to the cluster by going to http://localhost:8080 and http://localhost:8081 
+8. Verify the worker has connected to the cluster by going to http://localhost:8080 and http
+://localhost:8081 
 (worker web UI)
 
-10. Start a second worker
+9. Start a second worker
     ``` 
-    docker run -it --name spark-worker2 --network spark-net -p 8082:8081 sdesilva26/spark_worker:latest sh
+    docker run -dit --name spark-worker2 --network spark-net -p 8082:8081 -e MEMORY=2G -e CORES=1
+    sdesilva26/spark_worker bash
     ```
     
     The flag -p 8082:8081 now maps the exposed 8081 port of the docker container to the unassigned 8082 port of
@@ -471,24 +469,29 @@ web UI http://localhost:8082.
 
 12. Spin-up a spark_submit container
     ``` 
-    docker run -it --name spark-submit --network spark-net -p 4040:4040 sdesilva26/spark_submit:latest sh
+    docker run -it --name spark-submit --network spark-net -p 4040:4040 sdesilva26/spark_submit bash
     ```
     
     This container will act as our driver node, i.e. from where the main() method of your programs will run.
     
-13. From within the container navigate to the spark bin directory and jump into a scala shall using
+13. From within the container jump into a scala shall using
     ``` 
-    ./spark-shell --master spark://spark-master:7077 
+    $SPARK_HOME/bin/spark-shell --conf spark.executor.memory=2G --conf spark.executor.cores=1
+    --master spark://spark-master:7077 
     ```
     
-    This command connects the driver to the cluster by specifying the address of the master node.
+    This command connects the driver to the cluster by specifying the address of the master node
+    . Notice the name of the container running the spark master node is used (i.e. "spark-master" in the above command) to specify the IP address of the master node. The two --conf flags
+     specify how many cores an executor on the cluster should get and how much memory each
+     executor should get. See the later section on Spark tuning for more info on the difference
+     between spark workers and executors.
     
 14. If the driver connects successfully go to http://localhost:4040 to check the driver web UI.
 15. Run an example spark job by typing in the scala shell
     ``` 
     val myRange = spark.range(10000).toDF("number")
     
-    val divisBY2 = myRange.where("number % 2 = 0")
+    val divisBy2 = myRange.where("number % 2 = 0")
     
     divisBy2.count()
     ```
@@ -505,7 +508,7 @@ You have now submitted and run a spark job where the spark cluster is operating 
 #### Architecture
 
 You can skip this section, however I would advise going through it to gain a better understanding of why we are able
-to map certain ports to the machine's ports and use Docker network's automatic .
+to map certain ports to the machine's ports and use Docker network's automatic DNS resolution.
 
 The architecture we have just created, before adding the driver node, looks like this
 
@@ -553,48 +556,53 @@ and from there it is freely able to resolve and communicate with the nodes in th
  Now we can finally bring everything together to show what we would really like to do which is run 
  an Apache Spark cluster within Docker containers on different machines.
  
- #### Spark cluster + Docker containers - multiple machines
+ #### Spark Cluster
  
- 1. As before, follow the steps from the earlier section to create a docker swarm and join different hosts to 
- this swarm. 
- 2. Then on the t2.micro instance create the overlay network
-    ``` 
-    docker network create --driver overlay spark-net
+ 1. Start up 4 different EC2 instances and on the first run
     ```
- 3. Run a the spark_master image to create a container that will be the master node
+    docker swarm init
     ``` 
-    docker rn -it --name spark-master --network spark-net -p 8080:8080 sdesilva26/spark_master:latest
+ 2. As before, you will see a join token, copy and paste this command into the other 3 EC2
+  instances to form a docker swarm. 
+  
+ 3. Then on the t2.micro instance create the overlay network
+    ``` 
+    docker network create --driver overlay --attachable spark-net
+    ```
+ 3. Run a spark_master image to create a container that will be the master node
+    ``` 
+    docker run -it --name spark-master --network spark-net -p 8080:8080 sdesilva26/spark_master
+    :latest
     ```
     *NOTE: it is important to remember the name of this container (spark-master in this case) as this is what
     other containers in the network will use to resolve its IP address.
-    
- 4.  Run the following to crate a spark master node
-    ```
-    ./spark/bin/spark-class org.apache.spark.deploy.master.Master
-    ```
- 5. Check the master node has been setup correctly by going to http://<PUBLIC_IPv4_ADDRESS_OF_INSTANCE>:8080.
+
+ 4. Check the master node has been setup correctly by going to http://<PUBLIC_IPv4_ADDRESS_OF_INSTANCE>:8080.
  
- 6. Now on the larger AWS instances (c4.xlarge) create one container on each by using
+ 5. Now on the larger AWS instances (c4.xlarge) create one container on each by using
     ``` 
-    docker run -it --name spark-worker1 --network spark-net -p 8081:8081 sdesilva26/spark_worker:latest
-    docker run -it --name spark-worker2 --network spark-net -p 8082:8081 sdesilva26/spark_worker:latest
+    docker run -it --name spark-worker1 --network spark-net -p 8081:8081 -e MEMORY=6G -e
+     CORES=3 sdesilva26/spark_worker:latest
+    docker run -it --name spark-worker2 --network spark-net -p 8081:8081 -e MEMORY=6G -e
+     CORES=3 sdesilva26/spark_worker:latest
     ```
- 7. Inside each of them run the following to attach them as workers to the spark-master
+    NOTE: You can map port of the container to the port of the host machine without having to
+     increment them like we did when doing this on our local machine as they are located on
+      different host's. See the architecture diagram in the next section for more info.
+      
+ 6. Check the master web UI at http://<PUBLIC_IP_ADDRESS_OF_INSTANCE>:8080 to make sure the
+  workers were added successfully.
+  
+ 7. Now in a third AWS instance create a spark-submit container
     ``` 
-    ./spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
-    ```
-    
-    Notice how you can specify spark-master as the address of the master instead of its full IP address. By default
-    this will set up a worker on the current machine where it takes up all available cores and memory.
- 8. Check the master web UI at http://<PUBLIC_IP_ADDRESS_OF_INSTANCE>:8080 to make sure the workers were added
- successfully.
- 9. Now in a third AWS instance attach docker to the overlay network and then create a spark-submit container
-    ``` 
-    docker run -it --name spark-submit --network spark-net -p 4040:4040 sdesilva26/spark_submit:latest
+    docker run -it --name spark-submit --network spark-net -p 4040:4040 sdesilva26/spark_submit
+    :latest bash
     ```
  10. Launch a spark shell using
     ``` 
-    ./spark/bin/spark-shell spark://spark-master:7077
+    $SPARK_HOME/spark/bin/spark-shell --conf spark.executor.cores=3 --conf spark.executor.memory=6G
+     spark
+    ://spark-master:7077
     ```
  11. Now, as before, run a test program such as 
  
@@ -603,7 +611,7 @@ and from there it is freely able to resolve and communicate with the nodes in th
     
     val divisBy2 = myRange.where("number % 2 = 0")
     
-    divisiBy2.count()
+    divisBy2.count()
     ```
     
     You should get a result back to the console. Furthermore, you should be able to check the driver 
@@ -618,5 +626,24 @@ and from there it is freely able to resolve and communicate with the nodes in th
     
  That is it as far as connecting up a Spark cluster running in Docker containers is concerned. The next section will
  briefly go over the architecture we have set up in this section.
+ See the "Spark Tuning" page for info about spark executors, workers, tasks, jobs, stages, etc.
  
  #### Architecture
+ What we have set up in the previous section is the following architecture: 
+ 
+![Alt text](images/docker_four_machines.png)
+
+All of the machines involved in the cluster sit inside the overlay network which we called spark
+-net. This allows for each container to automatically resolve the addresses of other containers
+ in the overlay network. This makes communication between the various nodes in the cluster easy
+  as all the ports are exposed within the overlay network. If the containers did not sit in the
+   same overlay network we would need to expose every single port which could be used for
+    communication.
+    
+Each of the 8081 ports on the workers can now also be mapped to their host machine's 8081 port
+ since unlike when we set up the cluster inside docker containers on our local machine, there is
+  now a port 8081 on each of the host machines. 
+  
+  The above diagram illustrates why it is important that all the EC2 instances be deployed into
+   the same subnet within AWS. If they are not I think linking them into a Docker swarm would be
+    more troublesome.
