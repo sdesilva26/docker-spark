@@ -45,8 +45,7 @@ RUN tar -xzf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
     rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
     export PATH=$SPARK_HOME/bin:$PATH
 
-# Install large text file
-RUN wget "http://mattmahoney.net/dc/enwik9.zip" && \
-    unzip "enwik9.zip" && \
-    mv "enwik9" $SPARK_HOME/data/ && \
-    rm "enwik9.zip"
+# Install jars needed for communication with Azure
+RUN wget https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-azure/${HADOOP_VERSION}.0/hadoop-azure-${HADOOP_VERSION}.0.jar -P $SPARK_HOME/jars/ && \
+    wget https://repo1.maven.org/maven2/com/microsoft/azure/azure-storage/8.6.3/azure-storage-8.6.3.jar -P $SPARK_HOME/jars/
+

@@ -410,6 +410,7 @@ should see something similar to
  This whole section will detail how to setup an Apache Spark cluster running inside Docker containers
  on your local machine. The second half of this section will detail the architecture of this tp help the
  user in understanding the layout and the advantage of running everything inside of Docker containers.
+ 
  #### Spark cluster + Docker containers - local machine  
 
 Now we are going to use spark running inside of containers to set-up a cluster. To do this we will 
@@ -501,7 +502,7 @@ web UI http://localhost:8082.
     
 You have now submitted and run a spark job where the spark cluster is operating inside Docker containers.
 
-#### Spark & Docker Architecture
+#### Architecture
 
 You can skip this section, however I would advise going through it to gain a better understanding of why we are able
 to map certain ports to the machine's ports and use Docker network's automatic .
@@ -551,6 +552,8 @@ and from there it is freely able to resolve and communicate with the nodes in th
  ### Multiple machines
  Now we can finally bring everything together to show what we would really like to do which is run 
  an Apache Spark cluster within Docker containers on different machines.
+ 
+ #### Spark cluster + Docker containers - multiple machines
  
  1. As before, follow the steps from the earlier section to create a docker swarm and join different hosts to 
  this swarm. 
@@ -608,12 +611,12 @@ and from there it is freely able to resolve and communicate with the nodes in th
     *NOTE: The more common way of submitting jobs to the cluster is to use the spark-submit script. For example,
         ```
         ./bin/spark-submit \
-          --master spark://207.184.161.138:7077 \
+          --master spark://spark-master:7077 \
           examples/src/main/python/pi.py \
           1000
         ``` 
     
  That is it as far as connecting up a Spark cluster running in Docker containers is concerned. The next section will
- briefly go over the architecture we have set up in this section. The sections following that will be more advanced
- and specific to deep learning.
+ briefly go over the architecture we have set up in this section.
  
+ #### Architecture
