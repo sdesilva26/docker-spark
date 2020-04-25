@@ -120,7 +120,7 @@ This is how a Spark cluster divides up your program's job to execute in parallel
 ### Terms
 Here I put formal definitions of all the Spark specific terms I introduced in the previous section. 
 
-*NOTE: Some of these terms are terms that I use, I will denote these with a **.
+NOTE: Some of these terms are terms that I use, I will denote these with a *.
 
 | Term        | Definition           | Alias'  |
 | ------------- |:-------------:| -----:|
@@ -135,3 +135,122 @@ Here I put formal definitions of all the Spark specific terms I introduced in th
 
 
 ## Spark Tuning
+
+Tuning Spark clusters seems to be quite a dark arts with not too much written on the subject
+. Like anything it is job specific and so there is no free lunch here but these are the generals
+rules of thumb to follow that should get you close to optimal performance in the majority of
+situations.
+
+I found the following two resources useful when trying to read up on tuning spark:
+1. A 2-part blog post by [Cloudera](https://blog.cloudera.com/how-to-tune-your-apache-spark-jobs-part-1/)
+2. Another 2-part blog post by Anthony Shipman from [C2FO.io](https://c2fo.io/c2fo/spark/aws/emr/2016/07/06/apache-spark-config-cheatsheet/)
+
+Part 1 in the Cloudera blog post is good for gaining further understanding about how spark executes
+your program, definitions of stages, tasks, etc. Whilst part 2 goes into the details of tuning
+the parameters of your cluster for optimal performance.
+
+Shipman's blogpost has taken the guidance from Cloudera on setting the parameters for a cluster
+but he also includes a handy excel sheet that calculates these parameters for you. I have
+included this [excel sheet](/resources/C2FO-Spark-Config-Cheatsheet.xlsx) in the resources folder.
+
+Here I summarise my understanding of the tuning and later include some tests to demonstrate
+ tuning a cluster.
+ 
+### Cores & Memory
+There are two main resources that your applications cares about when it gets submitted - cores
+ and memory. Let's first focus on cores.
+ 
+#### Cores
+As depicted in the images in the previous section, when you submit a program to a Spark cluster
+, the driver requests a certain number of cores per executor. The naive approach would be to
+assign all the cores of a worker node to a single executor. For instance, if a worker node has
+24 cores, then why not set the number of cores per executor to 24? For some reason, which is
+gleaned from empirical evidence, is that assigning an executor more than 5 cores leads to bad
+HDFS I/O throughput.
+
+So first rule of thumb is to use a **maximum of 5 cores per executor**
+
+*NOTE: I will say that everything online reccommends this figure when working with HDFS files. So
+ for other file types this rule may not apply* 
+
+If you're worker node only has 3 cores for instance, you would not assign spark.executor.cores=5
+ as then your worker node would not be able to launch an executor.
+ 
+Another thing to keep in mind is that taking all of the cores of a worker node is a bad idea as
+ the machine still needs resources to run the OS and other bachground tasks.
+ 
+ Therefore, the second rule of thumb is **the number of available cores on a worker node = cores
+  on worker - 1**
+  
+So when you set up the worker node you would request # of cores on the worker node - 1 to be
+ available for use by the cluster.
+ 
+Example: you have a machine with 20 cores, you would set up the worker node on this machine with
+19 cores, then when you submit a job you could set spark.executor.cores=4 which would create 4
+ executors. 
+
+Using 5 in this case would leave 4 cores unused, so selecting 4 only leaves 3 unused. Depending
+on the task, you might be able to get by with 3 cores per executor, in which case you would only
+have 1 core unused. This is where you have to start experimenting.
+
+#### Memory
+The second resource to configure is the memory. The first thing to consider, like with cores, is
+ that the machine that is going to be the worker node still needs some memory to perform its
+  basic functions.
+  
+Therefore, the first rule of thumb concerning memory is **the amount of available memory for a
+ worker node = total memory on machine - 1GB**.
+ 
+Now the amount of the worker's memory to assign a single executor depends on which cluster
+ manager you are using. The advice regarding YARN, is that YARN requires some overhead in terms
+  of memory for each executor which is given by max(384, 0.07*spark.executor.memory).
+  
+For example: you have a machine with 20 cores and 64GB of memory. Assign 1 core and 1GB of memory
+for OS processes. Assign a max of 5 cores per executor, which gives 19/4 = 3 executors on a
+worker node. Now the memory per executor should be 63/3 - (63/3(*0.07) = 21 - 1.47 ~ 19GB per
+executor. It is best to round down the memory to the nearest integer as YARN will round up the
+overhead memory. 
+
+If using Standalone cluster manager then it is essentially the same except the overhead is max
+(384, 0.10*spark.executor.memory)
+
+Therefore, the second rule of thumb for memory is *take the worker node's memory and minus max(384
+, 0.10\*worker node memory), then divide by the number of executors, this is the value of spark
+.executor.memory*.
+
+### Parallelism
+One final, but very important parameter to set is the parallelism. Setting spark.default
+.parallelism sets the number of partitions that new RDD's created will be split into. Setting
+this too low, for instance to 1 in the extreme case, means you get 1 partition. Thus all your
+data will end up being processed by 1 executor, even if you have 100 executors. In this case
+you are not taking advantage of the parallelism of your cluster.
+
+Setting this too high results in loads of tiny tasks which again is detrimental since there is a
+ lot of overhead in managing many small tasks.
+ 
+The advice from [Shipman's blog post](https://c2fo.io/c2fo/spark/aws/emr/2016/07/06/apache-spark-config-cheatsheet/) is to set spark.default.parallelism to 2-3 times the number of total cores
+ of your executors.
+ 
+I am speculating here but each core of an executor is able to carry out more than one job at a
+time through multi-threading. It seems that executors are actually implemented as threads
+rather than cores in Spark [[1]](https://freecontent.manning.com/running-spark-an-overview-of-sparks-runtime-architecture/). So even though an executor may have 4 cores assigned to it, if the
+number of threads per core is 3, then really the executor can process 4*3=12 tasks at a time
+. So in this case you would want your RDD to be split such that there is 12 partitions on an
+ executor.
+ 
+Therefore, my rule of thumb for parallelism is *spark.default.parallelism = total # of threads in
+ your cluster*
+ 
+For example: you have 2 worker nodes each with 20 cores. You leave 1 core per worker for the OS
+, so you have 19 available. You set spark.executor.cores=5 and so you have 3 executors per node
+. With 2 worker nodes you have 2 threads per core \*5 cores per executor\*3 executors per worker
+ node\* 2 work nodes = 60.
+ 
+ If working on a machine in the cloud you can actually find the number of threads per core for
+  your machine such as here for [AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-optimize-cpu.html).
+
+
+
+ 
+
+ 

@@ -13,10 +13,10 @@ The file builds up the complexity in a seuqential fashion so as to help the unde
 networking, moves to setting up a Spark cluster on a local machine, and then finally combining the two locally and in a distrbuted fashion.
 
 ***
-## Apache Spark Tuning
+## Apache Spark
 The APACHESPARKTUNING.md explains the main terms involved in a Spark cluster such as worker node, master node, executor,
-parallelism, etc. The second section of this file describes some rough rules to use when setting the parameters of your 
-cluster to get optimal performance with some demonstrations.
+task, job, etc. The second section of this file describes some rough rules to use when setting the
+ parameters of your cluster to get optimal performance with some demonstrations.
 ***
 ## Examples
 The examples/ directory contains some example python scripts and jupyter notebooks for demonstrating various aspects of 
