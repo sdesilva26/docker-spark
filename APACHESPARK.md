@@ -44,17 +44,17 @@ by the action. This execution plan is called a **job**.
 
 Because of Spark's lazy evaluation, before the cluster executes the job Spark breaks the job down into **stages**. For example
 , a single job could be broken down into 3 stages for example. Stage boundaries are defined by a
- point in the execution plan where the cluster would have to shuffle or move data around the
-  cluster. I.e. the worker nodes now need data from other worker nodes. Common examples of a
-   stage boundary is when a groupByKey() transformation is encountered in the execution plan.
-   
+point in the execution plan where the cluster would have to shuffle or move data around the
+cluster. I.e. the worker nodes now need data from other worker nodes. Common examples of a
+stage boundary is when a groupByKey() transformation is encountered in the execution plan.
+
 Now that we know a stage is a set of work that a worker node can compute independently of the
 other worker nodes we can break a stage down even further. A single stage gets broken down into
 **tasks**. A task is a unit of work that can be computed in parallel on a single worker node. For
- example, if a worker node has 4 cores then the task can be run in parallel on these 4 cores. A
+example, if a worker node has 4 cores then the task can be run in parallel on these 4 cores. A
 task boundary is defined as when a subsequent transformation needs the result of the previous
 transformation to carry out its task. For example, reading in a text file and then splitting
- lines into key value pairs would be two tasks. The key value mapping transformation cannot
+lines into key value pairs would be two tasks. The key value mapping transformation cannot
 take place until the file has been read in to the worker nodes.  
 
 All of this can be summarised into the diagram below. The diagram shows the directed acyclic
@@ -81,38 +81,38 @@ each worker node. For this case I just described, where an executor should have 
 5GB of memory each worker node will create 4 executors. Thus of the 23 cores and 32GB of
 memory on each worker node, 16 cores and 20GB of memory will be taken by the 4 executors
 . See the image below. Therefore, there will be 3 cores and 12 GB of memory left over.
-  
- ![Alt text](images/example_worker_with_executors.png)
+
+![Alt text](images/example_worker_with_executors.png)
 
 Now we submit a job to the cluster. If we concentrate on this worker node for now. Stage 0 is
- loaded and the DAG given for that stage which consists of 3 tasks. Now the 4 executors on this
-  node start executing this tasks in parallel on all of the cores available to them. So you have
-   16 cores running the same task with a different chunk of the data. This first task might be
-    loading the data.
- 
- ![Alt text](images/example_worker_with_executors_stage0_task1.png)
+loaded and the DAG given for that stage which consists of 3 tasks. Now the 4 executors on this
+node start executing this tasks in parallel on all of the cores available to them. So you have
+16 cores running the same task with a different chunk of the data. This first task might be
+loading the data.
+
+![Alt text](images/example_worker_with_executors_stage0_task1.png)
 
 Once task 1 is finished the executor cores move on to task 2. At this point all the tasks are
- able to be run without any of the worker nodes, or executors having to communicate with each
-  other. Let's imagine this second tasks is some map function that splits text up into words and
-   make key value pairs such that (key: word, value: 1). So we create a dictionary where each
-    word is the key and its value is 1 to show it has appeared in the text.
+able to be run without any of the worker nodes, or executors having to communicate with each
+other. Let's imagine this second tasks is some map function that splits text up into words and
+make key value pairs such that (key: word, value: 1). So we create a dictionary where each
+word is the key and its value is 1 to show it has appeared in the text.
 
 ![Alt text](images/example_worker_with_executors_stage0_task2.png)
 
 Now we define the next transformation which is a reduceByKey(). Because each of the workers have
- different chunks of data, to reduce by key the executors must communicate to shuffle their data
-  aorund such that all key's for the word "hello" end up on one executor and then they can be
-   reduced.
-   
+different chunks of data, to reduce by key the executors must communicate to shuffle their data
+aorund such that all key's for the word "hello" end up on one executor and then they can be
+reduced.
+
 ![Alt text](images/example_worker_with_executors_stage0_task3.png)
 
 What happens is, first the executors perform a reduceByKey() locally on their chunk of data. And
- then all the workers nodes communicate to pass around key's. After the reshuffle a chunk of data
-  contains all occurances of a particularly key. For example, after the shuffle all keys
-   = "something" will be on one executor. Since the cluster had to shuffle data around we have
-    defined a stage boundary, the final part of this reduce is now the start of a new stage.
-    
+then all the workers nodes communicate to pass around key's. After the reshuffle a chunk of data
+contains all occurances of a particularly key. For example, after the shuffle all keys
+= "something" will be on one executor. Since the cluster had to shuffle data around we have
+defined a stage boundary, the final part of this reduce is now the start of a new stage.
+
 ![Alt text](images/example_worker_with_executors_stage1_task1.png)
 
 This is how a Spark cluster divides up your program's job to execute in parallel.
@@ -154,12 +154,12 @@ but he also includes a handy excel sheet that calculates these parameters for yo
 included this [excel sheet](/resources/C2FO-Spark-Config-Cheatsheet.xlsx) in the resources folder.
 
 Here I summarise my understanding of the tuning and later include some tests to demonstrate
- tuning a cluster.
- 
+tuning a cluster.
+
 ### Cores & Memory
 There are two main resources that your applications cares about when it gets submitted - cores
- and memory. Let's first focus on cores.
- 
+and memory. Let's first focus on cores.
+
 #### Cores
 As depicted in the images in the previous section, when you submit a program to a Spark cluster
 , the driver requests a certain number of cores per executor. The naive approach would be to
@@ -171,23 +171,23 @@ HDFS I/O throughput.
 So first rule of thumb is to use a **maximum of 5 cores per executor**
 
 *NOTE: I will say that everything online reccommends this figure when working with HDFS files. So
- for other file types this rule may not apply* 
+for other file types this rule may not apply* 
 
 If you're worker node only has 3 cores for instance, you would not assign spark.executor.cores=5
- as then your worker node would not be able to launch an executor.
- 
+as then your worker node would not be able to launch an executor.
+
 Another thing to keep in mind is that taking all of the cores of a worker node is a bad idea as
- the machine still needs resources to run the OS and other bachground tasks.
- 
- Therefore, the second rule of thumb is **the number of available cores on a worker node = cores
-  on worker - 1**
-  
+the machine still needs resources to run the OS and other bachground tasks.
+
+Therefore, the second rule of thumb is **the number of available cores on a worker node = cores
+on worker - 1**
+
 So when you set up the worker node you would request # of cores on the worker node - 1 to be
- available for use by the cluster.
- 
+available for use by the cluster.
+
 Example: you have a machine with 20 cores, you would set up the worker node on this machine with
 19 cores, then when you submit a job you could set spark.executor.cores=4 which would create 4
- executors. 
+executors. 
 
 Using 5 in this case would leave 4 cores unused, so selecting 4 only leaves 3 unused. Depending
 on the task, you might be able to get by with 3 cores per executor, in which case you would only
@@ -195,16 +195,16 @@ have 1 core unused. This is where you have to start experimenting.
 
 #### Memory
 The second resource to configure is the memory. The first thing to consider, like with cores, is
- that the machine that is going to be the worker node still needs some memory to perform its
-  basic functions.
-  
+that the machine that is going to be the worker node still needs some memory to perform its
+basic functions.
+
 Therefore, the first rule of thumb concerning memory is **the amount of available memory for a
- worker node = total memory on machine - 1GB**.
- 
+worker node = total memory on machine - 1GB**.
+
 Now the amount of the worker's memory to assign a single executor depends on which cluster
- manager you are using. The advice regarding YARN, is that YARN requires some overhead in terms
-  of memory for each executor which is given by max(384, 0.07*spark.executor.memory).
-  
+manager you are using. The advice regarding YARN, is that YARN requires some overhead in terms
+of memory for each executor which is given by max(384, 0.07*spark.executor.memory).
+
 For example: you have a machine with 20 cores and 64GB of memory. Assign 1 core and 1GB of memory
 for OS processes. Assign a max of 5 cores per executor, which gives 19/4 = 3 executors on a
 worker node. Now the memory per executor should be 63/3 - (63/3(*0.07) = 21 - 1.47 ~ 19GB per
@@ -222,35 +222,51 @@ Therefore, the second rule of thumb for memory is *take the worker node's memory
 One final, but very important parameter to set is the parallelism. Setting spark.default
 .parallelism sets the number of partitions that new RDD's created will be split into. Setting
 this too low, for instance to 1 in the extreme case, means you get 1 partition. Thus all your
-data will end up being processed by 1 executor, even if you have 100 executors. In this case
-you are not taking advantage of the parallelism of your cluster.
+data will end up being processed by 1 task, even if you have 100 executors. In this case
+you are not taking advantage of the parallelism of your cluster. The parallelism sets the maximum
+number of concurrent tasks Spark can work on since a task works on its own unique chunk of data.
 
 Setting this too high results in loads of tiny tasks which again is detrimental since there is a
- lot of overhead in managing many small tasks.
- 
+lot of overhead in managing many small tasks.
+
 The advice from [Shipman's blog post](https://c2fo.io/c2fo/spark/aws/emr/2016/07/06/apache-spark-config-cheatsheet/) is to set spark.default.parallelism to 2-3 times the number of total cores
- of your executors.
- 
+of your executors.
+
 I am speculating here but each core of an executor is able to carry out more than one job at a
 time through multi-threading. It seems that executors are actually implemented as threads
 rather than cores in Spark [[1]](https://freecontent.manning.com/running-spark-an-overview-of-sparks-runtime-architecture/). So even though an executor may have 4 cores assigned to it, if the
 number of threads per core is 3, then really the executor can process 4*3=12 tasks at a time
 . So in this case you would want your RDD to be split such that there is 12 partitions on an
- executor.
- 
-Therefore, my rule of thumb for parallelism is *spark.default.parallelism = total # of threads in
- your cluster*
- 
+executor.
+
+Therefore, my rule of thumb for parallelism is **spark.default.parallelism = total # of threads in
+your cluster**
+
 For example: you have 2 worker nodes each with 20 cores. You leave 1 core per worker for the OS
 , so you have 19 available. You set spark.executor.cores=5 and so you have 3 executors per node
 . With 2 worker nodes you have 2 threads per core \*5 cores per executor\*3 executors per worker
- node\* 2 work nodes = 60.
+node\* 2 work nodes = 60.
+
+If working on a machine in the cloud you can actually find the number of threads per core for
+your machine such as here for [AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-optimize-cpu.html).
+
+It should also be said that this value for parallelism is in the case where the size of your data
+can fit into the memory of an executor. You could be in a situation where you have 60 total
+threads in your cluster but if you are trying to process 1TB of data - splitting it up into only
+60 pieces results in 16.7GB of data being processed in a single task! 
+   
+Memory in spark is split between execution memory and storage memory. As a default, this split is
+50/50. So when you assign an executor 4 cores and 32 GB of memory, each core has 8 GB of memory
+\- 4GB for storage and 4GB for computations. So trying to process 16.7GB will lead to Spark
+spilling some of the data to disk which slows down computations drastically as now spark is
+having to read from disk rather than RAM. A nice explanation is provided [here](https://spoddutur.github.io/spark-notes/task_memory_management_in_spark.html)
+
+So if your data is huge, set spark.default.parallelism so that your data fits in the MEMORY of
+each core, if your data is small enough to fit then set parallelism to leverage the maximum
+amount of concurrent tasks by setting spark.default.parallelism = # of threads in cluster
  
- If working on a machine in the cloud you can actually find the number of threads per core for
-  your machine such as here for [AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-optimize-cpu.html).
 
 
 
- 
 
- 
+
