@@ -29,7 +29,7 @@ training = spark.createDataFrame([
 	(11, "hadoop software", 0.0)
 ], ["id", "text", "label"])
 
-# Configure an ML pipeline, which consists of tree stages: tokenizer, hashingTF, and lr.
+# Configure an ML pipeline, which consists of three stages: tokenizer, hashingTF, and lr.
 tokenizer = Tokenizer(inputCol="text", outputCol="words")
 hashingTF = HashingTF(inputCol=tokenizer.getOutputCol(), outputCol="features")
 lr = LogisticRegression(maxIter=10)
@@ -42,8 +42,10 @@ pipeline = Pipeline(stages=[tokenizer, hashingTF, lr])
 # With 3 values for hashingTF.numFeatures and 2 values for lr.regParam,
 # this grid will have 3 x 2 = 6 parameter settings for CrossValidator to choose from.
 paramGrid = ParamGridBuilder() \
-	.addGrid(hashingTF.numFeatures, [10, 100, 1000]) \
+	.addGrid(hashingTF.numFeatures, [10, 100, 1000, 5000]) \
 	.addGrid(lr.regParam, [0.1, 0.01, 0.01]) \
+    .addGrid(lr.threshold, [0.2, 0.5, 0.7]) \
+	.addGrud(lr.maxIter, [10, 100, 1000, 5000]) \
 	.build()
 
 crossval = CrossValidator(estimator=pipeline, estimatorParamMaps=paramGrid,
