@@ -239,7 +239,7 @@ sudo service docker start
 sudo docker run hello-world
 
 ```
-To avoid having to use sudo all the time follow these [instructions](#https://github.com/sindresorhus/guides/blob/master/docker-without-sudo.md)
+    To avoid having to use sudo all the time follow these [instructions](#https://github.com/sindresorhus/guides/blob/master/docker-without-sudo.md)
 and then disconnect from your instance and connect back to it again. You should now
 be able to run Docker commands without sudo.
 
