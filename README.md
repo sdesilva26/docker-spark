@@ -8,10 +8,17 @@ sequential fashion so as to hopefully build the understanding.
 
 ***
 ## Tutorial
-A full walk through on how to create a Spark cluster running on separate machines inside Docker containers is container within the TUTORIAL.md.
-The file builds up the complexity in a sequential fashion so as to help the understanding of the
-user. It starts off by demonstrating simple docker container
-networking, moves to setting up a Spark cluster on a local machine, and then finally combining the two locally and in a distrbuted fashion.
+A full walk through on how to create a Spark cluster running on separate machines inside Docker
+containers is container within the [TUTORIAL.md](TUTORIAL.md). The file builds up the complexity
+in a sequential fashion so as to help the understanding of the user. It starts off by
+demonstrating simple docker container networking, moves to setting up a Spark cluster on a
+local machine, and then finally combining the two locally and in a distributed fashion.
+
+#### Prerequisites
+
+I assume knowledge of basic Docker commands such as run, build, etc.
+
+You will need to set up multiple machines with a cloud provider such as AWS or Azure.
 
 ***
 ## Apache Spark
@@ -22,10 +29,6 @@ parameters of your cluster to get optimal performance with some demonstrations.
 ## Examples
 The examples/ directory contains some example python scripts and jupyter notebooks for demonstrating various aspects of 
 of Spark.
-
-# Docker & Spark
-
-Tutorial of how to set up a spark cluster running inside Docker containers on separate machines.
 
 ## Getting Started
 
@@ -96,15 +99,6 @@ These instructions allow you to manually set up a Apache Spark cluster running i
  containers located on different machines. For a full walk-through including explanations and
   a docker-compose version of setting up a cluster see the [TUTORIAL.md](TUTORIAL.md)
 
-### Prerequisites
-
-I assume knowledge of basic Docker commands such as run, build, etc.
-
-You will need to set up multiple machines with a cloud provider such as AWS or Azure.
-
-
-## Tutorial
-For the full tutorial refer to the [TUTORIAL.md](TUTORIAL.md)
 
 ## Authors
 
