@@ -63,7 +63,7 @@ then on different machines.
 ### Containers on a single machine
 
 Most of the following is taken from Docker's website in their section 
-about [networking with standalone containers](tutorial.md#https://docs.docker.com/network/network-tutorial-standalone/).
+about [networking with standalone containers](TUTORIAL.md#https://docs.docker.com/network/network-tutorial-standalone/).
 
 Docker running on your machine under the hood starts a Docker daemon which interacts
 with tthe linux OS to execute your commands.(*NOTE: if you're running Docker on a 
@@ -200,7 +200,7 @@ address as specified in the bridge network.
 ### Containers on different machines
 
 For this section most of this will be following the instructions from Docker's
-website about using an [overlay network for standalone containers](tutorial.md#https://docs.docker.com/network/network-tutorial-overlay/).
+website about using an [overlay network for standalone containers](TUTORIAL.md#https://docs.docker.com/network/network-tutorial-overlay/).
 
 If you have two different machines then the following section can be skipped.
 
@@ -647,3 +647,107 @@ Each of the 8081 ports on the workers can now also be mapped to their host machi
   The above diagram illustrates why it is important that all the EC2 instances be deployed into
    the same subnet within AWS. If they are not I think linking them into a Docker swarm would be
     more troublesome.
+    
+# Automating Cluster Creation
+
+## Basic Docker Stack
+All of the above required a fair amount of manual work but I think its good to go through the
+process to understand exactly what is going on. Furthermore, it allows you to efficiently debug
+when using a automated method of creating a cluster such as docker-compose.
+
+The standard docker-compose only sets up multiple services running on a single host. So if you
+ created a compose.yml that specified to set up 1 master node and 3 worker nodes, these
+  containers would all be created on the machine running the docker-compose command.
+  
+To make docker create containers on multiple hosts is not a lot more complicated. In fact you can
+ use the same compose file in most cases.
+ 
+1. First create a docker swarm and log into the swarm manager.
+
+2. Copy in your docker-compose file using the instructions that can be found [here](https://github.com/juanfrans/notes/wiki/Copying-Files-Between-Local-Computer-and-Instance-(AWS))
+ 
+3. Run a docker stack by using
+     ```
+    docker stack deploy --compose-file docker-compose.yml sparkdemo
+    ```
+4. Check the stack of services has been created using
+    ``` 
+   docker stack ps sparkdemo 
+   ```
+   You should see something similar to
+   
+   ![Alt text](images/aws_stack_screenshot.png)
+   
+   The names here refer to the names of your Docker services which are all appended with the name
+    of the stack (in this case sparkdemo)
+    
+## Advanced Docker Stack
+In the above creation of a docker stack, if your docker-compose.yml file is the same as one that
+ you have used to create services on a single machine, then the services of the stack will be
+  created randomly amongst all the available machines in the docker swarm.
+  
+In our cases we would like the docker swarm manager to run the sdesilva26/spark_master image, and
+ then the other machines in the docker swarm to run the sdesilva26/spark_worker image. This is
+  where we depart away from docker-compose.yml files that you would use for single host services
+   and stacks.
+   
+The first thing you need to do is label nodes in the swarm. This can be done only from the swarm
+ manager. From the swarm manager run
+ 
+``` 
+docker node ls
+```
+ and you should see something similar to this
+ 
+![Alt text](images/aws_swarm_node_inspect.png)
+
+What you can see is the swarm manager which is denoted as 'Leader' and then other two nodes
+marked as 'Ready' connected to the manager. Take the ID of one of these nodes are run the
+following
+   
+``` 
+docker node update --label-add role=worker 7yoc8ol6pw40yp7s9bth9xzp3
+```
+
+replacing the final argument with the ID of one of your nodes. Repeat this for the other node
+. Again perform this process but this time label the swarm manager with "master" as its role.
+
+Now that the hosts' in the cluster has labels you are able to construct a docker-compose.yml that
+ will create containers of a particular service only on node's that fulfill a certain constraint.
+ 
+Look at the docker-compose of this repo
+
+![Alt text](images/docker-compose_screenshot.png)
+
+I create 2 services called 'spark-master' and 'spark-worker'. Note that if you change the name of
+spark-master to something else you will need to pass the new name as an environment variable to
+the spark-worker containers as they use the name 'spark-master' by default to resolve the
+address of the Apache Spark cluster manager.
+
+I use the 'constraint' option under deploy/placement to specifiy that the spark-master should
+only be created on nodes where the label 'role' is equal to 'master'. I do a similar thing for
+the spark-workers. In this way we are able to control exactly which machines get which
+containers. The rest of the file is fairly straight forward - it is just a yml version of the
+command line options we have been passing such as ports, networks, etc.
+    
+Now running 
+
+``` 
+docker stack deploy --compose-file docker-compose.yml sparkdemo
+``` 
+
+will create a spark cluster with the master node on the swarm manager and the spark workers on
+ the node's labelled with role=worker. You can read more on using constraints [here](https://docs.docker.com/ee/ucp/admin/configure/add-labels-to-cluster-nodes/)
+ 
+ If you want to add a node at a later time, you would simply repeat the process of adding it to
+  the docker swarm, labelling it from the docker swarm manager, and then running
+  
+``` 
+docker service sparkdemo_spark-worker --scale 3
+``` 
+
+In this case, let's say you had 2 workers running before, after the command you would have 3
+ running as long as there was enough nodes in the docker swarm to accommodate this. 
+ 
+That is everything! That is how you go from running docker and spark on your local machine, to a
+ fully distributed and scalable cluster.
