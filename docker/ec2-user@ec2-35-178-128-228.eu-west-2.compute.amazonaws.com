@@ -23,7 +23,7 @@ services:
         # set node labels using docker node update --label-add key=value <NODE ID> from swarm manager
         constraints:
           - node.labels.role==worker
-      replicas: 3
+        replicas: 3
     networks:
       - spark-net
 networks:

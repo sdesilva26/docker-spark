@@ -601,8 +601,7 @@ and from there it is freely able to resolve and communicate with the nodes in th
  10. Launch a spark shell using
     ``` 
     $SPARK_HOME/spark/bin/spark-shell --conf spark.executor.cores=3 --conf spark.executor.memory=6G
-     spark
-    ://spark-master:7077
+     --master spark://spark-master:7077
     ```
  11. Now, as before, run a test program such as 
  
