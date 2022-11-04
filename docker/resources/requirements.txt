@@ -1,8 +1,4 @@
-pandas
-numpy
-matplotlib
-pyarrow
-koalas
-keras
-elephas
+pandas>=1.0.5
+numpy>=1.14
+pyarrow>=4.0.0
 
