@@ -1,4 +1,4 @@
-FROM sdesilva26/spark_base
+FROM logistser/spark_base:latest
 
 ENV MASTER_CONTAINER_NAME=spark-master
 ENV CORES=3

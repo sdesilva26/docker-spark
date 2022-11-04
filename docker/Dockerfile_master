@@ -1,4 +1,4 @@
-FROM sdesilva26/spark_base
+FROM logistser/spark_base:latest
 
 ENV SPARK_MASTER_PORT 7077
 ENV SPARK_MASTER_WEBUI_PORT 8080
